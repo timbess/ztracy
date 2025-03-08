@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
             bool,
             "enable_ztracy",
             "Enable Tracy profile markers",
-        ) orelse false,
+        ) orelse true,
         .enable_fibers = b.option(
             bool,
             "enable_fibers",

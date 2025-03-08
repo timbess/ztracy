@@ -1,6 +1,7 @@
 .{
-    .name = "ztracy",
+    .name = .ztracy,
     .version = "0.14.0-dev",
+    .fingerprint = 0xf803f1f75d60b95c,
     .paths = .{
         "build.zig",
         "build.zig.zon",

@@ -569,6 +569,7 @@ const tracy_full = struct {
                     .alloc = alloc,
                     .resize = resize,
                     .free = free,
+                    .remap = remap,
                 },
             };
         }
@@ -576,11 +577,11 @@ const tracy_full = struct {
         fn alloc(
             ctx: *anyopaque,
             len: usize,
-            log2_ptr_align: u8,
+            alignment: std.mem.Alignment,
             ra: usize,
         ) ?[*]u8 {
             const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
-            const result = self.child_allocator.rawAlloc(len, log2_ptr_align, ra);
+            const result = self.child_allocator.rawAlloc(len, alignment, ra);
             if (result) |addr| {
                 Alloc(addr, len);
             } else {
@@ -594,12 +595,12 @@ const tracy_full = struct {
         fn resize(
             ctx: *anyopaque,
             buf: []u8,
-            log2_ptr_align: u8,
+            alignment: std.mem.Alignment,
             new_len: usize,
             ra: usize,
         ) bool {
             const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
-            const result = self.child_allocator.rawResize(buf, log2_ptr_align, new_len, ra);
+            const result = self.child_allocator.rawResize(buf, alignment, new_len, ra);
             if (result) {
                 Free(buf.ptr);
                 Alloc(buf.ptr, new_len);
@@ -611,14 +612,28 @@ const tracy_full = struct {
             return result;
         }
 
+        fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+            const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
+            const result = self.child_allocator.rawRemap(memory, alignment, new_len, ret_addr);
+            if (result) |addr| {
+                Free(addr);
+                Alloc(addr, new_len);
+            } else {
+                var buffer: [128]u8 = undefined;
+                const msg = std.fmt.bufPrint(&buffer, "resize failed requesting {d} -> {d}", .{ memory.len, new_len }) catch return result;
+                Message(msg);
+            }
+            return result;
+        }
+
         fn free(
             ctx: *anyopaque,
             buf: []u8,
-            log2_ptr_align: u8,
+            alignment: std.mem.Alignment,
             ra: usize,
         ) void {
             const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
-            self.child_allocator.rawFree(buf, log2_ptr_align, ra);
+            self.child_allocator.rawFree(buf, alignment, ra);
             Free(buf.ptr);
         }
     };
